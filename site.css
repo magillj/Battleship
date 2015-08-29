@@ -1,0 +1,84 @@
+/* Start with ids */
+#of_board .cell {
+    border: 2px solid black;
+    height: 40px;
+    width: 40px;
+}
+
+#of_board .cell.highlight_ok, #df_board .cell.highlight_ok {
+    cursor: pointer;
+}
+
+#df_board {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#df_board .cell, #rt_board .cell {
+    border: 1px solid black;
+    height: 20px;
+    width: 20px;
+}
+
+#rotate_display {
+    display: inline-block;
+    text-align: right;
+    width: 77px;
+}
+
+#rt_board {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Start with elements */
+
+
+
+/* Start with classes */
+.cell.highlight_ok {
+    background-color: #ADD6FF;
+}
+
+.cell.highlight_bad {
+    background-color: #FF9792;
+}
+
+.content_hit {
+    background-image: url("Resources/hit.png");
+    background-size: contain;
+}
+
+.content_miss {
+    background-image: url("Resources/miss.png");
+    background-size: contain;
+}
+
+.rt_board_display {
+    margin-bottom: 10px;
+}
+
+.single_board {
+    display: inline-block;
+    height: 530px;
+    text-align: center;
+    width: 460px;
+    vertical-align: top;
+}
+
+.weapons {
+    border-top: 1px solid black;
+    margin-top: 10px;
+    text-align: center;
+    width: 920px;
+}
+
+.weapons div {
+    display: inline-block;
+    vertical-align: top;
+}
+
+.weapons div div {
+    display: block;
+}
+

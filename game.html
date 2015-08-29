@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Battleship</title>
+    <script src="jquery-2.1.4.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="site.css">
+</head>
+<body>
+    <div class="main_container">
+        <div class="boards">
+            <div class="single_board">
+                <h2>Enemy Waters</h2>
+                <table cellspacing="0" id="of_board"></table>
+            </div>
+            <div class="single_board">
+                <h2>Friendly Waters</h2>
+                <table cellspacing="0" id="df_board"></table>
+            </div>
+        </div>
+
+        <div class="weapons">
+            <div>
+                <h2>Firepower</h2>
+                <button class="weapon_select">Standard Artillery</button>
+                <button disabled class="weapon_select">Deep Sea Scanner</button>
+                <button class="weapon_select">Torpedo Launcher</button>
+                <button disabled class="weapon_select">Electromagnetic Rail Gun</button>
+                <button disabled class="weapon_select">Cluster Bombing Run</button>
+            </div>
+            <div>
+                <h3>Weapon Alignment</h3>
+                <div class="rt_board_display">
+                    <table cellspacing="0" id="rt_board">
+                        <tr>
+                            <td id="cell_rt_0_0" class="cell highlight_none"></td>
+                            <td id="cell_rt_0_1" class="cell highlight_none"></td>
+                            <td id="cell_rt_0_2" class="cell highlight_none"></td>
+                        </tr>
+                        <tr>
+                            <td id="cell_rt_1_0" class="cell highlight_none"></td>
+                            <td id="cell_rt_1_1" class="cell highlight_ok"></td>
+                            <td id="cell_rt_1_2" class="cell highlight_none"></td>
+                        </tr>
+                        <tr>
+                            <td id="cell_rt_2_0" class="cell highlight_none"></td>
+                            <td id="cell_rt_2_1" class="cell highlight_none"></td>
+                            <td id="cell_rt_2_2" class="cell highlight_none"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div>
+                    <button id="rotate_button">Rotate</button>
+                    <span id="rotate_display">0 degrees</span>
+                </div>
+            </div>
+        </div>
+
+        <a href="https://icons8.com">Icon pack by Icons8</a>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
