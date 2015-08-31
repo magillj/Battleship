@@ -40,8 +40,19 @@
     background-color: #ADD6FF;
 }
 
-.cell.highlight_bad {
+.cell.highlight_invalid {
     background-color: #FF9792;
+}
+
+.cell.highlight_rail {
+    background: #ebf1f6; /* Old browsers */
+    background: -moz-radial-gradient(center, ellipse cover, #ebf1f6 0%, #89c3eb 23%, #89c3eb 23%, #abd3ee 51%, #d5ebfb 100%); /* FF3.6+ */
+    background: -webkit-gradient(radial, center center, 0px, center center, 100%, color-stop(0%,#ebf1f6), color-stop(23%,#89c3eb), color-stop(23%,#89c3eb), color-stop(51%,#abd3ee), color-stop(100%,#d5ebfb)); /* Chrome,Safari4+ */
+    background: -webkit-radial-gradient(center, ellipse cover, #ebf1f6 0%,#89c3eb 23%,#89c3eb 23%,#abd3ee 51%,#d5ebfb 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-radial-gradient(center, ellipse cover, #ebf1f6 0%,#89c3eb 23%,#89c3eb 23%,#abd3ee 51%,#d5ebfb 100%); /* Opera 12+ */
+    background: -ms-radial-gradient(center, ellipse cover, #ebf1f6 0%,#89c3eb 23%,#89c3eb 23%,#abd3ee 51%,#d5ebfb 100%); /* IE10+ */
+    background: radial-gradient(ellipse at center, #ebf1f6 0%,#89c3eb 23%,#89c3eb 23%,#abd3ee 51%,#d5ebfb 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ebf1f6', endColorstr='#d5ebfb',GradientType=1 ); /* IE6-9 fallback on horizontal gradient */
 }
 
 .content_hit {

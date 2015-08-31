@@ -26,14 +26,15 @@ var CONSTS = {
     highlightClasses: {
         none: "highlight_none",
         ok: "highlight_ok",
-        invalid: "highlight_invalid"
+        invalid: "highlight_invalid",
+        rail: "highlight_rail"
     },
     weapons: {
         standard: "Standard Artillery",
         scan: "Deep Sea Scanner",
         torpedo: "Torpedo Launcher",
         rail: "Electromagnetic Rail Gun",
-        bomb: "Cluster Bombing Run"
+        bomb: "Cluster Bomb"
     },
     rotation: {
         none: 0,
@@ -46,11 +47,6 @@ var CONSTS = {
 /////////////////////////////////////////////////////////////////////////
 /*                             Helpers                                 */
 /////////////////////////////////////////////////////////////////////////
-// Returns a random integer between min (included) and max (excluded)
-// Using Math.round() will give you a non-uniform distribution!
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min)) + min;
-}
 
 // Clears all the highlighting on the rotate board
 function clearRotateBoard() {
@@ -134,6 +130,10 @@ function getCurrentWeaponTargetFunc() {
         return targetNormal;
     } else if (game.playerWeapon.weapon == CONSTS.weapons.torpedo) {
         return targetTorpedo;
+    } else if (game.playerWeapon.weapon == CONSTS.weapons.bomb) {
+        return targetBomb;
+    } else if (game.playerWeapon.weapon == CONSTS.weapons.rail) {
+        return targetRail;
     }
 }
 
@@ -143,6 +143,10 @@ function getCurrentWeaponFireFunc() {
         return fireNormal;
     } else if (game.playerWeapon.weapon == CONSTS.weapons.torpedo) {
         return fireTorpedo;
+    } else if (game.playerWeapon.weapon == CONSTS.weapons.bomb) {
+        return fireBomb;
+    } else if (game.playerWeapon.weapon == CONSTS.weapons.rail) {
+        return fireRail;
     }
 }
 
@@ -150,6 +154,11 @@ function getCurrentWeaponFireFunc() {
 // Using Math.round() will give you a non-uniform distribution!
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
+}
+
+// Returns true if the cell exists, otherwise false
+function isValidCell(row, col) {
+    return !(row < 0 || row > game.size.rows - 1 || col < 0 || col > game.size.cols - 1);
 }
 
 // Returns true if the cell can be shot at
@@ -171,8 +180,8 @@ function parseId(id) {
     return {
         isOf: board === "of",
         isRt: board === "rt",
-        row: rowNum,
-        col: colNum
+        row: parseInt(rowNum),
+        col: parseInt(colNum)
     };
 }
 
@@ -208,11 +217,10 @@ function setHighlightClass (cellId, highlightClass) {
 function highlightCell (cellId, highlightClass) {
     var cellData = parseId(cellId);
 
-    if (game.hoveredCells.cellIds.length > 0 && (cellData.isOf != game.hoveredCells.isOfBoard)) {
-        throw createErrorMessage("highlightCell", "Cannot hover over cells on both boards");
-    }
-
     if (!cellData.isRt) {
+        if (game.hoveredCells.cellIds.length > 0 && (cellData.isOf != game.hoveredCells.isOfBoard)) {
+            throw createErrorMessage("highlightCell", "Cannot hover over cells on both boards");
+        }
         game.hoveredCells.isOfBoard = cellData.isOf;
         game.hoveredCells.cellIds.push(cellId);
     }
@@ -227,6 +235,10 @@ function shootCell(row, col, board) {
         message: "Cell has already been shot",
         isHit: false
     };
+    if (!isValidCell(row, col)) {
+        status.message = "Invalid cell location";
+        return status;
+    }
     if (board[row][col] == CONSTS.values.ship) {
         board[row][col] = CONSTS.values.hit;
         status.success = true;
@@ -271,11 +283,11 @@ function initializeGame(rows, cols) {
     generateSingleBoardUI(false, rows, cols);
 
     // game
-    setGamestate(rows, cols);
+    setGameState(rows, cols);
 }
 
 // Sets up the game
-function setGamestate(rows, cols) {
+function setGameState(rows, cols) {
     game = {
         isPlayerSetup: false,
         isPlayerTurn: true,
@@ -287,11 +299,16 @@ function setGamestate(rows, cols) {
         dfBoard: createEmptyBoard(rows, cols),
         hoveredCells: {
             isOfBoard: false,
-            cellIds: []
+            cellIds: [],
+            centerId: ""
         },
         playerWeapon: {
             rotation: CONSTS.rotation.none,
             weapon: CONSTS.weapons.standard
+        },
+        playerAmmo: {
+            torpedo: 2,
+            bomb: 2
         }
     }
 }
@@ -311,6 +328,7 @@ function setGamestate(rows, cols) {
  */
 function onCellHover(id) {
     var cellData = parseId(id);
+    game.hoveredCells.centerId = id;
 
     if (game.isPlayerSetup && !cellData.isOf) {
         // Highlight ship setup locations
@@ -328,6 +346,7 @@ function onCellHover(id) {
 
 
 function onCellUnHover(id) {
+    game.hoveredCells.centerId = "";
     unHighlightAllCells();
 }
 
@@ -362,17 +381,15 @@ function playerShoot(id) {
  **/
 function fireNormal(id) {
     var cellData = parseId(id);
-
     var board = (game.isPlayerTurn ? game.ofBoard : game.dfBoard);
-    // Update the game
+
     var status = shootCell(cellData.row, cellData.col, board);
     if (!status.success) {
         return status;
     }
-    game.isPlayerTurn = !game.isPlayerTurn;
-    // Update the UI
     setContentClass(id, status.isHit ? CONSTS.contentClasses.hit : CONSTS.contentClasses.miss);
 
+    game.isPlayerTurn = !game.isPlayerTurn;
     if (game.isPlayerTurn) {
         unHighlightAllCells();
     }
@@ -380,7 +397,65 @@ function fireNormal(id) {
     return status;
 }
 
+function fireBomb(id) {
+    var cellData = parseId(id);
+    var board = (game.isPlayerTurn ? game.ofBoard : game.dfBoard);
+    // Ensure valid location by checking the corners
+    if (!isValidCell(cellData.row - 1, cellData.col - 1) || !isValidCell(cellData.row + 1, cellData.col + 1)) {
+        return {
+            success: false,
+            message: "Invalid weapon placement",
+            isHit: false
+        }
+    }
 
+
+
+    var isHit = false;
+    executeFuncOnBombCells(cellData.row, cellData.col, function(row, col) {
+        var status = shootCell(row, col, board);
+        if (!status.success) {
+            throw createErrorMessage("fireBomb", "Invalid shot during bomb firing pattern")
+        }
+        setContentClass(constructId(row, col, game.isPlayerTurn),
+            status.isHit ? CONSTS.contentClasses.hit : CONSTS.contentClasses.miss);
+        isHit = isHit || status.isHit;
+    });
+
+    game.isPlayerTurn = !game.isPlayerTurn;
+    if (game.isPlayerTurn) {
+        unHighlightAllCells();
+    }
+
+    return {
+        success: true,
+        message: "",
+        isHit: false
+    }
+}
+
+function fireRail(id) {
+    // TODO: Change so if it hits a ship, it wipes the whole thing out
+    return fireNormal(id);
+}
+
+
+
+function targetBomb(row, col, idConstructFunction) {
+    row = parseInt(row);
+    col = parseInt(col);
+
+    var highlightClass = CONSTS.highlightClasses.ok;
+    if (!isValidCell(row - 1, col - 1) || !isValidCell(row + 1, col + 1)) {
+        highlightClass = CONSTS.highlightClasses.invalid;
+    }
+
+    executeFuncOnBombCells(row, col, function(row, col) {
+        if (isValidCell(row, col)) {
+            highlightCell(idConstructFunction(row, col, true), highlightClass);
+        }
+    });
+}
 
 function targetNormal(row, col, idConstructFunction) {
     highlightCell(idConstructFunction(row, col, true), CONSTS.highlightClasses.ok);
@@ -401,7 +476,27 @@ function targetTorpedo(row, col, idConstructFunction) {
     }
 }
 
+function targetRail(row, col, idConstructFunction) {
+    highlightCell(idConstructFunction(row, col, true), CONSTS.highlightClasses.rail);
+}
 
+
+// Executes func on each cell in the bomb firing pattern determined by the centerRow, centerCol
+// Func passed row and col parameters
+function executeFuncOnBombCells(centerRow, centerCol, func) {
+    if (game.playerWeapon.rotation == CONSTS.rotation.none || game.playerWeapon.rotation == CONSTS.rotation.flip) {
+        for (var i = -1; i <= 1; i++) {
+            func(centerRow + i, centerCol + i);
+            func(centerRow + i, centerCol - i);
+        }
+    } else if (game.playerWeapon.rotation == CONSTS.rotation.diag ||
+        game.playerWeapon.rotation == CONSTS.rotation.antidiag) {
+        for (var j = -1; j <= 1; j++) {
+            func(centerRow, centerCol + j);
+            func(centerRow + j, centerCol);
+        }
+    }
+}
 
 /////////////////////////////////////////////////////////////////////////
 /*                               AI                                    */
@@ -429,3 +524,11 @@ $(".weapon_select").each(function() {
 });
 
 $("#rotate_button").click(rotateWeapon);
+$(document).keypress(function(event) {
+    if (String.fromCharCode(event.charCode).toLowerCase() == "r") { // R key is pressed
+        rotateWeapon();
+        // Reset the highlighting
+        unHighlightAllCells();
+        onCellHover(game.hoveredCells.centerId);
+    }
+});
