@@ -6,7 +6,11 @@
 }
 
 #of_board .cell.highlight_ok, #df_board .cell.highlight_ok {
-    cursor: pointer;
+    cursor: crosshair;
+}
+
+#of_board .cell.highlight_ship {
+    background-color: saddlebrown;
 }
 
 #df_board {
@@ -18,6 +22,14 @@
     border: 1px solid black;
     height: 20px;
     width: 20px;
+}
+
+#df_board .content_ship {
+    background-color: gray;
+}
+
+#df_board .cell.highlight_ship {
+    background-color: saddlebrown;
 }
 
 #rotate_display {
@@ -36,11 +48,11 @@
 
 
 /* Start with classes */
-.cell.highlight_ok {
+.highlight_ok {
     background-color: #ADD6FF;
 }
 
-.cell.highlight_invalid {
+.highlight_invalid {
     background-color: #FF9792;
 }
 
@@ -67,6 +79,38 @@
 
 .rt_board_display {
     margin-bottom: 10px;
+}
+
+.ship_listing {
+    display: inline-block;
+    list-style-type: none;
+    width: 125px;
+}
+
+.ship_select  {
+    border: 1px solid darkgray;
+    padding: 2px;
+}
+.ship_select:hover {
+    outline: solid 1px lightgray;
+}
+
+#player_ships .ship_select.placing:hover {
+    background-color: #CEE6FF;
+    cursor: pointer;
+}
+
+.ship_select.placed {
+    background-color: lightgray;
+    cursor: default;
+}
+
+.ship_select.selected_ship {
+    background-color: #ADD6FF;
+}
+
+.ship_select.placing {
+    cursor: pointer;
 }
 
 .single_board {

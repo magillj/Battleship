@@ -16,6 +16,22 @@
             <div class="single_board">
                 <h2>Friendly Waters</h2>
                 <table cellspacing="0" id="df_board"></table>
+                <div>
+                    <ul id="ai_ships" class="ship_listing">
+                        <li id="ai_ship1" class="ship_select highlight_none">Patrol Boat</li>
+                        <li id="ai_ship2" class="ship_select highlight_none">Submarine</li>
+                        <li id="ai_ship3" class="ship_select highlight_none">Destroyer</li>
+                        <li id="ai_ship4" class="ship_select highlight_none">Battleship</li>
+                        <li id="ai_ship5" class="ship_select highlight_none">Carrier</li>
+                    </ul>
+                    <ul id="player_ships" class="ship_listing">
+                        <li id="player_ship1" class="ship_select placing highlight_none">Patrol Boat</li>
+                        <li id="player_ship2" class="ship_select placing highlight_none">Submarine</li>
+                        <li id="player_ship3" class="ship_select placing highlight_none">Destroyer</li>
+                        <li id="player_ship4" class="ship_select placing highlight_none">Battleship</li>
+                        <li id="player_ship5" class="ship_select placing highlight_none">Carrier</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -24,8 +40,8 @@
                 <h2>Firepower</h2>
                 <button class="weapon_select">Standard Artillery</button>
                 <button disabled class="weapon_select">Deep Sea Scanner</button>
-                <button class="weapon_select">Torpedo Launcher</button>
-                <button class="weapon_select">Electromagnetic Rail Gun</button>
+                <button disabled class="weapon_select">Torpedo Launcher</button>
+                <button disabled class="weapon_select">Electromagnetic Rail Gun</button>
                 <button class="weapon_select">Cluster Bomb</button>
             </div>
             <div>
@@ -55,8 +71,6 @@
                 </div>
             </div>
         </div>
-
-        <a href="https://icons8.com">Icon pack by Icons8</a>
     </div>
 
     <script src="game.js"></script>

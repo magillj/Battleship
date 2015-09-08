@@ -10,6 +10,8 @@
 
 // An object that keeps track of the game
 var game;
+// An object that holds AI specific data
+var aIBrain;
 // Game Constants
 var CONSTS = {
     values: {
@@ -21,13 +23,15 @@ var CONSTS = {
     contentClasses: {
         empty: "content_empty",
         hit: "content_hit",
-        miss: "content_miss"
+        miss: "content_miss",
+        ship: "content_ship"
     },
     highlightClasses: {
         none: "highlight_none",
         ok: "highlight_ok",
         invalid: "highlight_invalid",
-        rail: "highlight_rail"
+        rail: "highlight_rail",
+        ship: "highlight_ship"
     },
     weapons: {
         standard: "Standard Artillery",
@@ -41,6 +45,13 @@ var CONSTS = {
         diag: 90,
         flip: 180,
         antidiag: 270
+    },
+    ships: {
+        patrol: "Patrol Boat",        // 2 length
+        sub: "Submarine",             // 3 length
+        destroyer: "Destroyer",       // 3 length
+        battleship: "Battleship",     // 4 length
+        carrier: "Carrier"            // 5 length
     }
 };
 
@@ -85,6 +96,41 @@ function createEmptyBoard(rows, cols) {
     return output;
 }
 
+// Function run when game ends
+function endGame(isPlayerWin) {
+    if (isPlayerWin) {
+        alert("Congrats, you win!");
+    } else {
+        alert("Oh no, the computer has defeated you!");
+    }
+}
+
+// Executes func(row, col) on every cell for the ship placement regardless of if the placement is valid
+// Placement determined centerRow, centerCol, and size
+function executeOnShipCells(centerRow, centerCol, rotation, size, func) {
+    var offset = Math.floor(size / 2);
+
+    for (var i = 0; i < size; i ++) {
+        var row;
+        var col;
+        if (rotation == CONSTS.rotation.none) {
+            row = centerRow - offset + i;
+            col = centerCol;
+        } else if (rotation == CONSTS.rotation.diag) {
+            row = centerRow - offset + i;
+            col = centerCol - offset + i;
+        } else if (rotation == CONSTS.rotation.flip) {
+            row = centerRow;
+            col = centerCol - offset + i;
+        } else if (rotation == CONSTS.rotation.antidiag) {
+            row = centerRow - offset + i;
+            col = centerCol + offset - i;
+        }
+
+        func(row, col);
+    }
+}
+
 // Generates the UI for a single board based on if the board isOf
 function generateSingleBoardUI (isOf, rows, cols) {
     for (var i = 0; i < rows; i++) {
@@ -101,11 +147,15 @@ function generateSingleBoardUI (isOf, rows, cols) {
             });
             if (isOf) {
                 cell.addEventListener('click', function(){
-                    playerShoot($(this)[0].id);
+                    if (!game.isPlayerSetup) {
+                        playerShoot($(this)[0].id);
+                    }
                 });
             } else {
                 cell.addEventListener('click', function(){
-                    playerSetup($(this)[0].id);
+                    if (game.isPlayerSetup) {
+                        playerSetup($(this)[0].id);
+                    }
                 });
             }
             row.appendChild(cell);
@@ -118,7 +168,11 @@ function generateSingleBoardUI (isOf, rows, cols) {
 function getAvailableDfBoardCells() {
     var output = [];
     $("#df_board").find(".cell").each(function() {
-        output.push($(this)[0].id)
+        var cellData = parseId($(this)[0].id);
+        if (game.dfBoard[cellData.row][cellData.col] == CONSTS.values.ship ||
+            game.dfBoard[cellData.row][cellData.col] == CONSTS.values.empty) {
+            output.push($(this)[0].id);
+        }
     });
 
     return output;
@@ -150,10 +204,91 @@ function getCurrentWeaponFireFunc() {
     }
 }
 
+// Returns the data describing the position and rotation of a ship
+function getShipData(shipName, isPlayerShip) {
+    var shipDataList = isPlayerShip ? game.playerShips : game.aIShips;
+    if (shipName == CONSTS.ships.patrol) {
+        return shipDataList.patrol;
+    } else if (shipName == CONSTS.ships.sub) {
+        return shipDataList.sub;
+    } else if (shipName == CONSTS.ships.destroyer) {
+        return shipDataList.destroyer;
+    } else if (shipName == CONSTS.ships.battleship) {
+        return shipDataList.battleship;
+    } else if (shipName == CONSTS.ships.carrier) {
+        return shipDataList.carrier;
+    }
+}
+
+// Returns the length of a ship (in cells taken up on the board). If the ship is invalid, returns -1
+function getShipLength(shipName) {
+    if (shipName == CONSTS.ships.patrol) {
+        return 2;
+    } else if (shipName == CONSTS.ships.sub) {
+        return 3;
+    } else if (shipName == CONSTS.ships.destroyer) {
+        return 3;
+    } else if (shipName == CONSTS.ships.battleship) {
+        return 4;
+    } else if (shipName == CONSTS.ships.carrier) {
+        return 5;
+    }
+    return -1;
+}
+
+// Returns the name of the ship with a part of it located at row, col. Returns empty string if no ship there
+function getShipAt(row, col, isPlayerShip) {
+    var shipDataList = isPlayerShip ? game.playerShips : game.aIShips;
+    if (!isValidCell(row, col)) {
+        return "";
+    }
+    var shipName = "";
+    if (shipContainsCell(row, col, shipDataList.patrol, CONSTS.ships.patrol)) {
+        shipName = CONSTS.ships.patrol;
+    } else if (shipContainsCell(row, col, shipDataList.sub, CONSTS.ships.sub)) {
+        shipName = CONSTS.ships.sub;
+    } else if (shipContainsCell(row, col, shipDataList.destroyer, CONSTS.ships.destroyer)) {
+        shipName = CONSTS.ships.destroyer;
+    } else if (shipContainsCell(row, col, shipDataList.battleship, CONSTS.ships.battleship)) {
+        shipName = CONSTS.ships.battleship;
+    } else if (shipContainsCell(row, col, shipDataList.carrier, CONSTS.ships.carrier)) {
+        shipName = CONSTS.ships.carrier;
+    }
+    return shipName;
+}
+
 // Returns a random integer between min (included) and max (excluded)
 // Using Math.round() will give you a non-uniform distribution!
 function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
+}
+
+// If the cell was hit, checks if the ship was sunk. If the ship was sunk, adds it to the proper list of sunk ships
+// and checks if the game is over
+function handleShotSuccess(status, targetCellId, isAI) {
+    if (status.isHit) {
+        var cellData = parseId(targetCellId);
+        var hitShipName = getShipAt(cellData.row, cellData.col, isAI);
+        if (isShipDestroyed(hitShipName, isAI)) {
+            var sinkList = isAI ? game.sunkPlayerShips : game.sunkAIShips;
+            sinkList.push(hitShipName);
+            if (sinkList.length == 5) {
+                endGame(!isAI);
+            }
+        }
+    }
+}
+
+// Returns true if the ship has been destroyed
+function isShipDestroyed(shipName, isPlayerShip) {
+    var shipData = getShipData(shipName, isPlayerShip);
+    var board = isPlayerShip ? game.dfBoard : game.ofBoard;
+    var isDestroyed = true;
+    executeOnShipCells(shipData.centerRow, shipData.centerCol, shipData.rotation, getShipLength(shipName),
+                       function(row, col) {
+        isDestroyed = isDestroyed && board[row][col] == CONSTS.values.hit;
+    });
+    return isDestroyed;
 }
 
 // Returns true if the cell exists, otherwise false
@@ -165,6 +300,15 @@ function isValidCell(row, col) {
 function isValidPlayerShot(cellData) {
     return cellData.isOf &&(game.ofBoard[cellData.row][cellData.col] == CONSTS.values.empty ||
            game.ofBoard[cellData.row][cellData.col] == CONSTS.values.ship)
+}
+
+// Returns true if a ship can be placed there, false otherwise
+function isValidShipLocation(row, col, rotation, size) {
+    var isValid = true;
+    executeOnShipCells(row, col, rotation, size, function(row, col) {
+        isValid = isValid && isValidCell(row, col);
+    });
+    return isValid;
 }
 
 // Parses a cell id in to an object with rows and columns
@@ -183,6 +327,28 @@ function parseId(id) {
         row: parseInt(rowNum),
         col: parseInt(colNum)
     };
+}
+
+// Places a ship on the board, updating the UI and game object
+function placeShip(centerRow, centerCol, rotation, shipName, isPlayer) {
+    setShipCoords(centerRow, centerCol, rotation, shipName, isPlayer);
+    executeOnShipCells(centerRow, centerCol, rotation, getShipLength(shipName), function(row, col) {
+        if (isPlayer) {
+            game.dfBoard[row][col] = CONSTS.values.ship;
+        } else {
+            game.ofBoard[row][col] = CONSTS.values.ship;
+        }
+        setContentClass(constructId(row, col, !isPlayer), CONSTS.contentClasses.ship);
+    });
+}
+
+// Rotates the ship 90 degrees
+function rotateShip() {
+    if (game.setup.shipRotate == 270) {
+        game.setup.shipRotate = 0;
+    } else {
+        game.setup.shipRotate = game.setup.shipRotate + 90;
+    }
 }
 
 // Rotates the weapon 90 degrees
@@ -206,11 +372,18 @@ function setContentClass (cellId, contentClass) {
         });
 }
 
+// Sets the class corresponding to the highlighting state of the cell to highlightingClass
 function setHighlightClass (cellId, highlightClass) {
     $("#" + cellId).attr('class',
         function(i, c){
             return c.replace(/(^|\s)highlight_\S+/g, " " + highlightClass);
         });
+}
+
+// Sets the highlight class of a ship
+function setHighlightShipClass (shipName, highlightClass, isPlayer) {
+    var shipListId = isPlayer ? "player_ships" : "ai_ships";
+    setHighlightClass($("#" + shipListId).find(".ship_select:contains('" + shipName + "')")[0].id, highlightClass);
 }
 
 // Sets the highlight class of the cell and updates the game
@@ -226,6 +399,36 @@ function highlightCell (cellId, highlightClass) {
     }
 
     setHighlightClass(cellId, highlightClass)
+}
+
+// Sets the center coordinates of a ship
+function setShipCoords(centerRow, centerCol, rotation, shipName, isPlayerShip) {
+    var shipSave = isPlayerShip ? game.playerShips : game.aIShips;
+    var ship;
+    if (shipName == CONSTS.ships.patrol) {
+        ship = shipSave.patrol;
+    } else if (shipName == CONSTS.ships.sub) {
+        ship = shipSave.sub;
+    } else if (shipName == CONSTS.ships.destroyer) {
+        ship = shipSave.destroyer;
+    } else if (shipName == CONSTS.ships.battleship) {
+        ship = shipSave.battleship;
+    } else if (shipName == CONSTS.ships.carrier) {
+        ship = shipSave.carrier;
+    }
+    ship.centerCol = centerCol;
+    ship.centerRow = centerRow;
+    ship.rotation = rotation;
+}
+
+// Returns true if the cell with row, col is part of the ship, false otherwise
+function shipContainsCell(row, col, shipData, shipName) {
+    var contains = false;
+    executeOnShipCells(shipData.centerRow, shipData.centerCol, shipData.rotation, getShipLength(shipName),
+                       function(r, c) {
+        contains = contains || (r == row && c == col);
+    });
+    return contains;
 }
 
 // If possible, updates the cell in board with a shot
@@ -249,7 +452,6 @@ function shootCell(row, col, board) {
         board[row][col] = CONSTS.values.miss;
         status.message = "Shot missed";
     }
-    status.success = true;
 
     return status;
 }
@@ -284,12 +486,49 @@ function initializeGame(rows, cols) {
 
     // game
     setGameState(rows, cols);
+
+    // aIBrain
+    initAI(rows, cols);
+}
+
+// Sets up the AI with the tools it will need to start
+function initAI(rows, cols) {
+    if (rows != 10 && cols != 10) {
+        throw createErrorMessage("initAI", "Board size not supported");
+    }
+    aIBrain = {
+        possibleSetups: [
+            [
+                {
+                    centerRow: 2,
+                    centerCol: 8,
+                    rotation: 0
+                },{
+                    centerRow: 9,
+                    centerCol: 1,
+                    rotation: CONSTS.rotation.flip
+                },{
+                    centerRow: 4,
+                    centerCol: 7,
+                    rotation: CONSTS.rotation.diag
+                },{
+                    centerRow: 2,
+                    centerCol: 2,
+                    rotation: CONSTS.rotation.antidiag
+                },{
+                    centerRow: 6,
+                    centerCol: 3,
+                    rotation: CONSTS.rotation.flip
+                }
+            ]
+        ]
+    };
 }
 
 // Sets up the game
 function setGameState(rows, cols) {
     game = {
-        isPlayerSetup: false,
+        isPlayerSetup: true,
         isPlayerTurn: true,
         size: {
             rows: rows,
@@ -297,6 +536,10 @@ function setGameState(rows, cols) {
         },
         ofBoard: createEmptyBoard(rows, cols),
         dfBoard: createEmptyBoard(rows, cols),
+        setup: {
+            shipSelect: "",
+            shipRotate: 0
+        },
         hoveredCells: {
             isOfBoard: false,
             cellIds: [],
@@ -309,7 +552,67 @@ function setGameState(rows, cols) {
         playerAmmo: {
             torpedo: 2,
             bomb: 2
-        }
+        },
+        playerShips: {
+            patrol: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            },
+            sub: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            },
+            destroyer: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            },
+            battleship: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            },
+            carrier: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            }
+        },
+        sunkPlayerShips: [],
+        aIAmmo: {
+            torpedo: 2,
+            bomb: 2
+        },
+        aIShips: {
+            patrol: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            },
+            sub: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            },
+            destroyer: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            },
+            battleship: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            },
+            carrier: {
+                centerRow: -1,
+                centerCol: -1,
+                rotation: 0
+            }
+        },
+        sunkAIShips: [],
     }
 }
 
@@ -330,8 +633,17 @@ function onCellHover(id) {
     var cellData = parseId(id);
     game.hoveredCells.centerId = id;
 
-    if (game.isPlayerSetup && !cellData.isOf) {
-        // Highlight ship setup locations
+    if (game.isPlayerSetup && !cellData.isOf && game.setup.shipSelect) {
+        var highlightClass = CONSTS.highlightClasses.ok;
+        if (!isValidShipLocation(cellData.row, cellData.col, game.setup.shipRotate, getShipLength(game.setup.shipSelect))) {
+            highlightClass = CONSTS.highlightClasses.invalid;
+        }
+
+        executeOnShipCells(cellData.row, cellData.col, game.setup.shipRotate, getShipLength(game.setup.shipSelect), function(row, col) {
+            if (isValidCell(row, col)) {
+                highlightCell(constructId(row, col, false), highlightClass);
+            }
+        });
     }
 
     if (!game.isPlayerSetup && cellData.isOf) {
@@ -353,7 +665,24 @@ function onCellUnHover(id) {
 
 // Attempts to set up one of the player's ships at the cell with id
 function playerSetup(id) {
-    alert("player setup");
+    var cellData = parseId(id);
+
+    if (game.setup.shipSelect && isValidShipLocation(cellData.row, cellData.col, game.setup.shipRotate,
+                                                     getShipLength(game.setup.shipSelect))) {
+        // Update UI
+        setHighlightShipClass(game.setup.shipSelect, CONSTS.highlightClasses.none, true);
+        var shipSelector = $(".ship_select:contains('" + game.setup.shipSelect + "')");
+        shipSelector.removeClass("placing").addClass("placed");
+
+        placeShip(cellData.row, cellData.col, game.setup.shipRotate, game.setup.shipSelect, true);
+        unHighlightAllCells();
+        game.setup.shipSelect = "";
+
+        // Check if the player is done placing their ships
+        if ($(".placing").length == 0) {
+            setupAIShips();
+        }
+    }
 }
 
 // Attempts to update the game with a shot by the player on a cell with id
@@ -368,8 +697,6 @@ function playerShoot(id) {
 }
 
 
-
-
 /////////////////////////////////////////////////////////////////////////
 /*                        Weapon Functions                             */
 /////////////////////////////////////////////////////////////////////////
@@ -382,12 +709,15 @@ function playerShoot(id) {
 function fireNormal(id) {
     var cellData = parseId(id);
     var board = (game.isPlayerTurn ? game.ofBoard : game.dfBoard);
-
     var status = shootCell(cellData.row, cellData.col, board);
     if (!status.success) {
         return status;
     }
     setContentClass(id, status.isHit ? CONSTS.contentClasses.hit : CONSTS.contentClasses.miss);
+
+    if (status.success) {
+        handleShotSuccess(status, constructId(cellData.row, cellData.col, game.isPlayerTurn), !game.isPlayerTurn);
+    }
 
     game.isPlayerTurn = !game.isPlayerTurn;
     if (game.isPlayerTurn) {
@@ -409,17 +739,15 @@ function fireBomb(id) {
         }
     }
 
-
-
     var isHit = false;
     executeFuncOnBombCells(cellData.row, cellData.col, function(row, col) {
         var status = shootCell(row, col, board);
-        if (!status.success) {
-            throw createErrorMessage("fireBomb", "Invalid shot during bomb firing pattern")
+        if (status.success) {
+            setContentClass(constructId(row, col, game.isPlayerTurn),
+                status.isHit ? CONSTS.contentClasses.hit : CONSTS.contentClasses.miss);
+            isHit = isHit || status.isHit;
+            handleShotSuccess(status, constructId(row, col, game.isPlayerTurn), !game.isPlayerTurn);
         }
-        setContentClass(constructId(row, col, game.isPlayerTurn),
-            status.isHit ? CONSTS.contentClasses.hit : CONSTS.contentClasses.miss);
-        isHit = isHit || status.isHit;
     });
 
     game.isPlayerTurn = !game.isPlayerTurn;
@@ -439,8 +767,10 @@ function fireRail(id) {
     return fireNormal(id);
 }
 
-
-
+/**
+ * All targeting functions formatted as: function(row, col, idConstructFunction)
+ * They update the board's highlighting
+ **/
 function targetBomb(row, col, idConstructFunction) {
     row = parseInt(row);
     col = parseInt(col);
@@ -506,10 +836,24 @@ function executeFuncOnBombCells(centerRow, centerCol, func) {
 function makeAIMove() {
     // TODO: Add difficulty levels and incorporate use of weapons
     var openShots = getAvailableDfBoardCells();
-    fireNormal(openShots[getRandomInt(0, openShots.length)]);
+    var targetCellId = openShots[getRandomInt(0, openShots.length)];
+    var status = fireNormal(targetCellId);
+    if (!status.success) {
+        throw createErrorMessage("makeAIMove", "Unsuccessful AI move order")
+    }
+
 }
 
-
+// Dictates how the AI chooses to set up it's ships
+function setupAIShips() {
+    var setup = aIBrain.possibleSetups[getRandomInt(0, aIBrain.possibleSetups.length - 1)];
+    placeShip(setup[0].centerRow, setup[0].centerCol, setup[0].rotation, CONSTS.ships.patrol, false);
+    placeShip(setup[1].centerRow, setup[1].centerCol, setup[1].rotation, CONSTS.ships.sub, false);
+    placeShip(setup[2].centerRow, setup[2].centerCol, setup[2].rotation, CONSTS.ships.destroyer, false);
+    placeShip(setup[3].centerRow, setup[3].centerCol, setup[3].rotation, CONSTS.ships.battleship, false);
+    placeShip(setup[4].centerRow, setup[4].centerCol, setup[4].rotation, CONSTS.ships.carrier, false);
+    game.isPlayerSetup = false;
+}
 
 /////////////////////////////////////////////////////////////////////////
 /*                           Run On Eval                               */
@@ -523,10 +867,41 @@ $(".weapon_select").each(function() {
     });
 });
 
+$("#player_ships").find(".ship_select").each(function() {
+    $(this).click(function() {
+        if ($(this).hasClass("placing")) {
+            if (game.setup.shipSelect) {
+                setHighlightShipClass(game.setup.shipSelect, CONSTS.highlightClasses.none, true);
+            }
+            game.setup.shipSelect = $(this).html();
+            game.setup.shipRotate = 0;
+            setHighlightShipClass(game.setup.shipSelect, CONSTS.highlightClasses.ok, true);
+        }
+    });
+    $(this)[0].addEventListener('mouseover', function(){
+        var shipName = $(this).html();
+        var shipData = getShipData(shipName, true);
+        if (shipData.centerRow != -1 && shipData.centerCol != -1) {
+            executeOnShipCells(shipData.centerRow, shipData.centerCol, shipData.rotation, getShipLength(shipName),
+                function (row, col) {
+                    highlightCell(constructId(row, col, false), CONSTS.highlightClasses.ship);
+                });
+        }
+    });
+    $(this)[0].addEventListener('mouseout', function(){
+        unHighlightAllCells();
+    });
+});
+
 $("#rotate_button").click(rotateWeapon);
+
 $(document).keypress(function(event) {
     if (String.fromCharCode(event.charCode).toLowerCase() == "r") { // R key is pressed
-        rotateWeapon();
+        if (game.isPlayerSetup) {
+            rotateShip();
+        } else {
+            rotateWeapon();
+        }
         // Reset the highlighting
         unHighlightAllCells();
         onCellHover(game.hoveredCells.centerId);
